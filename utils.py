@@ -381,10 +381,11 @@ def all_gather_batch_with_grad(tensors):
     return output_tensor
 
 def _get_rank_env():
+    # os.environ 获取环境变量
     if "RANK" in os.environ:
         return int(os.environ["RANK"])
     else:
-        return int(os.environ['OMPI_COMM_WORLD_RANK'])
+        return int(os.environ['OMPI_COMM_WORLD_RANK']) # 这是 Open MPI（一个用于高性能计算的框架）自动设置的环境变量，表示当前进程在 MPI 通信组中的编号。
 
 
 def _get_local_rank_env():
@@ -406,6 +407,7 @@ def init_distributed_mode(args):
         args.rank = _get_rank_env()
         args.world_size = _get_world_size_env()  # int(os.environ['OMPI_COMM_WORLD_SIZE'])
         args.gpu = _get_local_rank_env()
+        # 在 PyTorch 等框架中，分布式训练通常需要指定一个 URL（通常是 tcp:// 格式），它包含了主控节点的地址和端口，用于同步各个工作节点。
         args.dist_url = "tcp://%s:%s" % (os.environ['MASTER_ADDR'], os.environ['MASTER_PORT'])
         os.environ['LOCAL_RANK'] = str(args.gpu)
         os.environ['RANK'] = str(args.rank)
@@ -425,14 +427,16 @@ def init_distributed_mode(args):
 
     args.distributed = True
 
-    torch.cuda.set_device(args.gpu)
-    args.dist_backend = 'nccl'
+    torch.cuda.set_device(args.gpu) # 指定要使用的GPU设备编号
+    args.dist_backend = 'nccl' # NCCL（NVIDIA Collective Communications Library） 是 NVIDIA 提供的一种高性能通信库，专门优化了在多 GPU 和多节点环境中的通信操作。
     print('| distributed init (rank {}): {}, gpu {}'.format(
         args.rank, args.dist_url, args.gpu), flush=True)
+    # 初始化分布式环境
     torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                          world_size=args.world_size, rank=args.rank)
+    # 在所有参与分布式训练的进程之间设置一个屏障（Barrier），确保所有进程在同一时刻到达这个屏障后，才会继续执行后续的代码。
     torch.distributed.barrier()
-    setup_for_distributed(args.rank == 0)
+    setup_for_distributed(args.rank == 0) # 不是0号机时禁用print方法
 
 
 def load_state_dict(model, state_dict, prefix='', ignore_missing="relative_position_index"):
@@ -665,7 +669,7 @@ def auto_load_model(args, model, model_without_ddp, optimizer, loss_scaler, mode
                         _load_checkpoint_for_ema(model_ema, client_states['model_ema'])
 
 def create_ds_config(args):
-    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True) # 创建指定的目录
     with open(os.path.join(args.output_dir, "latest"), mode="w") as f:
         pass
 
@@ -734,6 +738,9 @@ class TUABLoader(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         sample = pickle.load(open(os.path.join(self.root, self.files[index]), "rb"))
+        # 推荐改用下面写法，因为没有with关键字，文件被打开之后不会关闭，可能导致占用系统资源
+        # with open(os.path.join(self.root, self.files[index]), "rb") as file:
+        #     sample = pickle.load(file)
         X = sample["X"]
         if self.sampling_rate != self.default_rate:
             X = resample(X, 10 * self.sampling_rate, axis=-1)
@@ -793,7 +800,7 @@ def prepare_TUAB_dataset(root):
     seed = 12345
     np.random.seed(seed)
 
-    train_files = os.listdir(os.path.join(root, "train"))
+    train_files = os.listdir(os.path.join(root, "train")) # 返回该目录下所有内容的列表
     np.random.shuffle(train_files)
     val_files = os.listdir(os.path.join(root, "val"))
     test_files = os.listdir(os.path.join(root, "test"))

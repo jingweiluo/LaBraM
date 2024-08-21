@@ -166,22 +166,23 @@ def get_args():
     parser.add_argument('--world_size', default=1, type=int,
                         help='number of distributed processes')
     parser.add_argument('--local_rank', default=-1, type=int)
-    parser.add_argument('--dist_on_itp', action='store_true')
+    parser.add_argument('--dist_on_itp', action='store_true') # 不声明即为False
     parser.add_argument('--dist_url', default='env://',
                         help='url used to set up distributed training')
 
-    parser.add_argument('--enable_deepspeed', action='store_true', default=False)
+    parser.add_argument('--enable_deepspeed', action='store_true', default=False) # 是否开启deep speed，如果不声明则为False
     parser.add_argument('--dataset', default='TUAB', type=str,
                         help='dataset: TUAB | TUEV')
 
     known_args, _ = parser.parse_known_args() # 返回通过add_argument方法定义了的参数
 
+    # 是否启用deepspeed,微软开发的一个开源深度学习优化库,提供分布式训练，混合精度训练，ZeRO优化器等加速优化大模型训练的功能
     if known_args.enable_deepspeed:
         try:
             import deepspeed
             from deepspeed import DeepSpeedConfig
-            parser = deepspeed.add_config_arguments(parser)
-            ds_init = deepspeed.initialize
+            parser = deepspeed.add_config_arguments(parser) # 该函数会向传入的 `parser` 中添加与 DeepSpeed 配置相关的命令行参数选项
+            ds_init = deepspeed.initialize # 将初始化函数赋值给一个变量
         except:
             print("Please 'pip install deepspeed==0.4.0'")
             exit(0)
@@ -229,14 +230,15 @@ def get_dataset(args):
 
 
 def main(args, ds_init):
+    # 判断是否分布式训练，是的话进行初始化
     utils.init_distributed_mode(args)
 
     if ds_init is not None:
-        utils.create_ds_config(args)
+        utils.create_ds_config(args) # 生成Deep Speed的config文件，存储在output_dir下的deepspeed_config.json中
 
     print(args)
 
-    device = torch.device(args.device)
+    device = torch.device(args.device) # 指定设备
 
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
@@ -292,8 +294,8 @@ def main(args, ds_init):
         dataset_train, sampler=sampler_train,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
-        pin_memory=args.pin_mem,
-        drop_last=True,
+        pin_memory=args.pin_mem, # 锁页内存，不会操作系统将数据从内存放到磁盘交换区，加快速度
+        drop_last=True, # 在数据集的大小不能被 batch_size 整除时，是否丢弃最后一个不完整的批次
     )
 
     if dataset_val is not None:
@@ -396,6 +398,8 @@ def main(args, ds_init):
     print("Number of training examples = %d" % len(dataset_train))
     print("Number of training training per epoch = %d" % num_training_steps_per_epoch)
 
+    # 基于层数衰减策略（Layer Decay）为模型的各层分配不同的学习率衰减因子
+    # 越靠近输入的层（越浅的层），衰减因子越大，学习率越小；反之亦然
     num_layers = model_without_ddp.get_num_layers()
     if args.layer_decay < 1.0:
         assigner = LayerDecayValueAssigner(list(args.layer_decay ** (num_layers + 1 - i) for i in range(num_layers + 2)))
@@ -405,17 +409,21 @@ def main(args, ds_init):
     if assigner is not None:
         print("Assigned values = %s" % str(assigner.values))
 
-    skip_weight_decay_list = model.no_weight_decay()
-    if args.disable_weight_decay_on_rel_pos_bias:
+    # 这段代码的目的是在训练过程中设置一个权重衰减（weight decay）跳过列表
+    skip_weight_decay_list = model.no_weight_decay() # 在深度学习模型中，有些参数不适合应用权重衰减（如偏置项、LayerNorm 的参数、特定的可学习参数等），所以这些参数会被添加到 skip_weight_decay_list 中。
+    if args.disable_weight_decay_on_rel_pos_bias: # 相对位置偏置
         for i in range(num_layers):
             skip_weight_decay_list.add("blocks.%d.attn.relative_position_bias_table" % i)
 
     if args.enable_deepspeed:
         loss_scaler = None
+        # 每个参数组包含一组模型参数和它们对应的超参数（如学习率、权重衰减）。这个列表会被传递给优化器，用于配置训练过程中的参数更新规则
         optimizer_params = get_parameter_groups(
             model, args.weight_decay, skip_weight_decay_list,
             assigner.get_layer_id if assigner is not None else None,
             assigner.get_scale if assigner is not None else None)
+        
+        # deepspeed.initialize 会对这个模型进行包装，使其能够在分布式环境中高效训练。包装后的模型支持 DeepSpeed 的特性，例如 ZeRO 优化器、混合精度训练等。
         model, optimizer, _, _ = ds_init(
             args=args, model=model, model_parameters=optimizer_params, dist_init_required=not args.distributed,
         )
@@ -433,6 +441,7 @@ def main(args, ds_init):
             get_layer_scale=assigner.get_scale if assigner is not None else None)
         loss_scaler = NativeScaler()
 
+    # 调整整个epoch过程中lr的值，和之前的Layer Decay都是动态调整lr、wd的值，但是用的地方不一样
     print("Use step level LR scheduler!")
     lr_schedule_values = utils.cosine_scheduler(
         args.lr, args.min_lr, args.epochs, num_training_steps_per_epoch,

@@ -69,7 +69,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
             targets = targets.float().unsqueeze(-1)
 
         if loss_scaler is None:
-            samples = samples.half()
+            samples = samples.half() # 将张量的数据类型转换为半精度浮点数（float16）
             loss, output = train_class_batch(
                 model, samples, targets, criterion, input_chans)
         else:
