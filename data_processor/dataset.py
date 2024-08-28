@@ -45,7 +45,7 @@ class SingleShockDataset(Dataset):
         global_idx = 0
         for subject in self.__subjects:
             self.__global_idxes.append(global_idx) # the start index of the subject's sample in the dataset
-            subject_len = self.__file[subject]['eeg'].shape[1] # 每个被试的eeg信号总长度T
+            subject_len = self.__file[subject]['eeg'].shape[1] # 每个session的eeg信号总长度T
             # total number of samples
             total_sample_num = (subject_len-self.__window_size) // self.__stride_size + 1 # 经过滑窗后的Trial个数
             # cut out part of samples
