@@ -16,6 +16,7 @@ rsfreq = 200
 # channel number * rsfreq
 chunks = (62, rsfreq)
 
+# 这行代码会在指定的 savePath 路径下创建一个名为 dataset.hdf5 的 HDF5 文件，而不是一个文件夹。
 dataset = h5Dataset(savePath, 'dataset')
 for cntFile in group:
     print(f'processing {cntFile.name}')
