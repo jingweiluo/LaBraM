@@ -119,7 +119,7 @@ class VQNSP(nn.Module):
         h, w = n, N // n
 
         to_quantizer_features = rearrange(to_quantizer_features, 'b (h w) c -> b c h w', h=h, w=w) # reshape for quantizer
-        quantize, loss, embed_ind = self.quantize(to_quantizer_features)
+        quantize, loss, embed_ind = self.quantize(to_quantizer_features) # quantize shape(b, c, h, w) (B, 4, 64, 64)
 
         return quantize, embed_ind, loss
     
@@ -163,7 +163,7 @@ class VQNSP(nn.Module):
         xrec, xrec_angle = self.decode(quantize, input_chans)
         rec_loss = self.calculate_rec_loss(xrec, amplitude)
         rec_angle_loss = self.calculate_rec_loss(xrec_angle, angle)
-        loss = emb_loss + rec_loss + rec_angle_loss
+        loss = emb_loss + rec_loss + rec_angle_loss # 嵌入损失，重构amp损失，重构phase损失
 
         log = {}
         split="train" if self.training else "val"

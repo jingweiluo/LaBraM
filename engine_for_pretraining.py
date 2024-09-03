@@ -106,6 +106,7 @@ def train_one_epoch(model: torch.nn.Module, vqnsp: torch.nn.Module,
                 with torch.cuda.amp.autocast(): #  启用混合精度训练
                     input_ids = vqnsp.get_codebook_indices(samples, input_chans)
 
+                # 结果 labels 将是一个一维张量，包含所有被掩盖的元素（即那些在 bool_masked_pos 中为 True 的位置对应的 input_ids 中的元素）
                 labels = input_ids[bool_masked_pos] # 被掩盖的元素的codebook id
                 labels_sym = input_ids[~bool_masked_pos]
 

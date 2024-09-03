@@ -154,19 +154,24 @@ class NormEMAVectorQuantizer(nn.Module):
         z_flattened = z.reshape(-1, self.codebook_dim)
         self.embedding.init_embed_(z_flattened)
         
+        # 将这三个部分组合起来，我们可以得到一个形状为 (B * 256, num_tokens) 的矩阵，其中每个元素表示输入样本与嵌入表中相应嵌入项之间欧氏距离的平方。
         d = z_flattened.pow(2).sum(dim=1, keepdim=True) + \
             self.embedding.weight.pow(2).sum(dim=1) - 2 * \
             torch.einsum('bd,nd->bn', z_flattened, self.embedding.weight) # 'n d -> d n'
         
+        # 结果是一个形状为 (B * 256) 的一维张量，包含每个输入样本最接近的嵌入项的索引。
         encoding_indices = torch.argmin(d, dim=1)
 
+        # self.embedding(encoding_indices)的shape为（B * 256, 64）是查找出来的距离输入最接近的code vector
+        # .view(b, h, w, c) = (B, 64, 64, 4)
+        # 所以z_q shape = (B, 64, 64, 4)
         z_q = self.embedding(encoding_indices).view(z.shape)
         
-        encodings = F.one_hot(encoding_indices, self.num_tokens).type(z.dtype)     
+        encodings = F.one_hot(encoding_indices, self.num_tokens).type(z.dtype) # 转换成one-hot, shape(B * 256, num_tokens)
         
         if not self.training:
             with torch.no_grad():
-                cluster_size = encodings.sum(0)
+                cluster_size = encodings.sum(0) # (1, num_tokens) 每个token出现的次数
                 self.all_reduce_fn(cluster_size)
                 ema_inplace(self.cluster_size, cluster_size, self.decay)
         
