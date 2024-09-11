@@ -138,14 +138,17 @@ def readEDF(fileName):
 
     _, times = Rawdata[:]
     signals = Rawdata.get_data(units='uV')
+
+    # 找到与 .edf 文件对应的 .rec 文件，并将其加载为一个数组。
     RecFile = fileName[0:-3] + "rec"
     eventData = np.genfromtxt(RecFile, delimiter=",")
+
     Rawdata.close()
     return [signals, times, eventData, Rawdata]
 
 
 def load_up_objects(BaseDir, Features, OffendingChannels, Labels, OutDir):
-    for dirName, subdirList, fileList in tqdm(os.walk(BaseDir)):
+    for dirName, subdirList, fileList in tqdm(os.walk(BaseDir)): # 当前目录名，子目录列表，子文件列表
         print("Found directory: %s" % dirName)
         for fname in fileList:
             if fname[-4:] == ".edf":
@@ -187,7 +190,7 @@ def save_pickle(object, filename):
 TUEV dataset is downloaded from https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml
 """
 
-root = "/userhome1/jiangweibang/Datasets/TUH_Event/v2.0.0/edf"
+root = "/data1/labram_data/tuh_eeg/tuh_eeg_events/v2.0.1/edf/"
 train_out_dir = os.path.join(root, "processed_train")
 eval_out_dir = os.path.join(root, "processed_eval")
 if not os.path.exists(train_out_dir):
@@ -219,7 +222,7 @@ load_up_objects(
 
 
 #transfer to train, eval, and test
-root = "/share/TUEV/"
+root = "/data1/labram_data/tuh_eeg/tuh_eeg_events/v2.0.1/edf/"
 seed = 4523
 np.random.seed(seed)
 
@@ -234,9 +237,21 @@ train_sub = list(set(train_sub) - set(val_sub))
 val_files = [f for f in train_files if f.split("_")[0] in val_sub]
 train_files = [f for f in train_files if f.split("_")[0] in train_sub]
 
+# 创建目标目录的函数，如果不存在则创建
+def ensure_directory_exists(directory):
+    os.makedirs(directory, exist_ok=True)
+
+ensure_directory_exists(os.path.join(root, 'processed', 'processed_train'))
 for file in train_files:
+    print(f"Transferring train file {file}...")
     os.system(f"cp {os.path.join(root, 'processed_train', file)} {os.path.join(root, 'processed', 'processed_train')}")
+
+ensure_directory_exists(os.path.join(root, 'processed', 'processed_eval'))
 for file in val_files:
+    print(f"Transferring val file {file}...")
     os.system(f"cp {os.path.join(root, 'processed_train', file)} {os.path.join(root, 'processed', 'processed_eval')}")
+
+ensure_directory_exists(os.path.join(root, 'processed', 'processed_test'))
 for file in test_files:
+    print(f"Transferring test file {file}...")
     os.system(f"cp {os.path.join(root, 'processed_eval', file)} {os.path.join(root, 'processed', 'processed_test')}")

@@ -31,6 +31,7 @@ dataset = h5Dataset(savePath, 'dataset_tuab')
 for edfFile in group:
     print(f'processing {edfFile.name}')
     eegData, chOrder = preprocessing_edf(edfFile, l_freq, h_freq, rsfreq, drop_channels, chOrder_standard)
+    chOrder = [s.split(' ')[1].split('-')[0] for s in chOrder] # 当通道表示为 EEG FP1-REF 这种格式的可以这样处理，其他得对应分别处理
     chOrder = [s.upper() for s in chOrder]
     # eegData = eegData[:, :-10*rsfreq] # 每个session取10s的数据
     eegData = eegData[:, :] # 每个session取完整的数据(也可选择只取前10s，但是会浪费)
