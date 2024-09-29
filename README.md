@@ -56,6 +56,29 @@ OMP_NUM_THREADS=1 torchrun --nnodes=1 --nproc_per_node=8 run_labram_pretraining.
         --codebook_dim 64 \
         --gradient_accumulation_steps 1
 ```
+### Mega pre-train
+We pre-train Mega similar to MAE, only encode visible patches, and then use a light-weight decoder to reconstruct the raw EEG data.
+```bash
+CUDA_VISIBLE_DEVICES=1,2,3,4 OMP_NUM_THREADS=1 torchrun --nnodes=1 --nproc_per_node=4 run_mega_pretraining.py \
+--output_dir ./checkpoints/labram_base \
+--log_dir ./log/labram_base \
+--model model_mega \
+--tokenizer_model vqnsp_encoder_base_decoder_3x200x12 \
+--tokenizer_weight ./checkpoints/vqnsp.pth \
+--batch_size 64 \
+--lr 5e-4 \
+--warmup_epochs 5 \
+--clip_grad 3.0 \
+--drop_path 0. \
+--layer_scale_init_value 0.1 \
+--opt_betas 0.9 0.98 \
+--opt_eps 1e-8  \
+--epochs 50 \
+--save_ckpt_freq 5 \
+--codebook_dim 64 \
+--gradient_accumulation_steps 1 \
+--mask_ratio 0.8
+```
 ### Fine-tune on downstream tasks
 Before fine-tuning, use the code in dataset_maker/(make_TUAB.py, make_TUEV.py) to preprocess the downstream datasets as well as split data into training, validation, and test set. Notably you are encouraged to try different hyperparameters, such as the learning rate and warmup_epochs which can largely influence the final performance, to get better results. Here is the hyperparameter we used in the paper:
 ```bash
