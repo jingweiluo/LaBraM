@@ -69,8 +69,8 @@ def train_one_epoch(model: torch.nn.Module, vqnsp: torch.nn.Module,
                     log_writer=None, lr_scheduler=None, start_steps=None,
                     lr_schedule_values=None, wd_schedule_values=None, ch_names_list=None, args=None):
     model.train()
-    metric_logger = utils.MetricLogger(delimiter="  ")
-    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    metric_logger = utils.MetricLogger(delimiter="  ") # 使用两个空格作为不同日志项之间的分隔符
+    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}')) # 添加用于跟踪学习率的度量器，并将其格式化为小数点后6位
     metric_logger.add_meter('min_lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     header = 'Epoch: [{}]'.format(epoch)
     print_freq = 10

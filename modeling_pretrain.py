@@ -257,7 +257,10 @@ class NeuralTransformerForMEM(nn.Module):
     def forward(self, x, input_chans=None, bool_masked_pos=None):
         x_masked = self.student(x, input_chans, bool_masked_pos, return_all_patch_tokens=True)
         x_masked_no_cls = x_masked[:, 1:]
-        x_rec = self.lm_head(x_masked_no_cls[bool_masked_pos])
+
+        # x_masked_no_cls[bool_masked_pos] shape为 N, embed_dim
+        # x_rec (N, vacab_size)
+        x_rec = self.lm_head(x_masked_no_cls[bool_masked_pos]) # linear project到8192个类别上
 
         #symetric
         x_masked_sym = self.student(x, input_chans, ~bool_masked_pos, return_all_patch_tokens=True)
